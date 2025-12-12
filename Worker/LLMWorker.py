@@ -16,7 +16,6 @@ class LLM_brain():
         self.model_name = model_name
 
     def _validate_response(self,response: str) -> int:
-        """严格校验模型返回的打分是否是 1-5 的整数"""
         numbers = re.findall(r'\b[1-5]\b', response)
 
         if not numbers:
@@ -30,7 +29,6 @@ class LLM_brain():
         return result
 
     def get_rating(self, prompt: str, temperature: float = 0.0) -> int:
-        """与LLM通信并获取评分"""
         completion = self.llm.chat.completions.create(
             model=self.model_name,
             messages=[
@@ -50,7 +48,7 @@ class LLM_worker(LLM_brain):
         super(LLM_worker, self).__init__(model_name)
         self.task_queue = queue.Queue()
         self.results_lock = threading.Lock()
-        self.MAX_CONCURRENT_REQUESTS = MAX_CONCURRENT_REQUESTS  # 调整为GPU能够处理的最大并发数
+        self.MAX_CONCURRENT_REQUESTS = MAX_CONCURRENT_REQUESTS
         self.temperature = temperature
         self.demographic = {}
         self.tasks = []
@@ -60,12 +58,10 @@ class LLM_worker(LLM_brain):
         self.model_name = model_name
 
     def _generate_demographic(self, distrib_df: pd.DataFrame):
-        """根据分布随机抽取demographic属性"""
         for col in ['gender', 'race', 'age', 'occupation', 'education']:
             self.demographic[col] = np.random.choice(distrib_df[col].dropna().unique())
 
     def _make_prompt(self, comment_text: str) -> str:
-        """生成提示"""
         if not self.demographic:
             demographic_str = "general human"
         else:
@@ -110,7 +106,7 @@ ps: if the llm is Qwen:
     def _task_process(self):
         while True:
             task = self.task_queue.get()
-            if task is None:  # 退出信号
+            if task is None: 
                 self.task_queue.task_done()
                 break
 
@@ -136,7 +132,6 @@ ps: if the llm is Qwen:
             self.tasks.append(t)
         self._task_gathering(df_A, distrib_df, multi_persona)
         self.task_queue.join()
-        # 处理结果
         for idx in self.results:
             result = self.results[idx]
             if isinstance(result, Exception):
@@ -151,6 +146,6 @@ ps: if the llm is Qwen:
 
     def task_exit(self):
         for _ in range(len(self.tasks)):
-            self.task_queue.put(None)  # 发送停止信号
+            self.task_queue.put(None)
         for t in self.tasks:
             t.join()
